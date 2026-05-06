@@ -1,0 +1,60 @@
+{
+  "skill_name": "mutation-hardening",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "acabei de implementar o OrderService com testes, roda mutation testing pra ver se os testes tão realmente pegando os bugs",
+      "expected_output": "Agent configures PITest if absent, runs it, parses survived mutants in OrderService, writes targeted tests for boundaries/arithmetic/returns that survived, re-runs, reports final mutation score",
+      "files": [],
+      "assertions": [
+        {"text": "Agent detected build tool (Maven or Gradle) before configuring PITest"},
+        {"text": "Agent added pitest plugin to pom.xml or build.gradle (without overwriting existing build config)"},
+        {"text": "PITest configuration excludes integration tests via excludedTestClasses (*IT, *IntegrationTest pattern)"},
+        {"text": "PITest configuration sets avoidCallsTo for slf4j/log4j/java.util.logging"},
+        {"text": "Agent ran mvn pitest:mutationCoverage (or ./gradlew pitest) and waited for completion"},
+        {"text": "Agent parsed mutations.xml (used scripts/parse_mutations.py or equivalent XML parsing)"},
+        {"text": "Agent reported test_strength and mutation_coverage as separate metrics"},
+        {"text": "Agent wrote at least one new test targeting a SURVIVED mutant with a concrete assertion (not assertNotNull alone)"},
+        {"text": "Agent re-ran PITest after writing tests to verify improvement"},
+        {"text": "Final test_strength reported is >= 0.80 OR remaining survivors are documented as equivalent mutants"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "our PaymentValidator has 100% line coverage but I don't trust the tests — can you harden them with mutation testing?",
+      "expected_output": "Agent runs PITest (not just coverage), finds survived mutants despite 100% line coverage, writes missing boundary/assertion tests, re-runs to verify improvement in test strength",
+      "files": [],
+      "assertions": [
+        {"text": "Agent explained that line coverage and mutation testing measure different things (coverage vs. assertion strength)"},
+        {"text": "Agent ran PITest and identified SURVIVED mutants in PaymentValidator despite 100% line coverage"},
+        {"text": "Agent wrote tests targeting specific mutators (ConditionalsBoundary, NegateConditionals, Returns, Math, etc.)"},
+        {"text": "Each new test has a descriptive name reflecting the boundary/condition it checks"},
+        {"text": "Agent re-ran PITest and reported the test_strength delta"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "preciso que o mutation score do módulo de pricing chegue a pelo menos 80% antes de eu fazer o deploy",
+      "expected_output": "Agent detects build tool, configures PITest targeting the pricing module, runs it, iterates writing tests until test_strength >= 0.80, then reports final metrics",
+      "files": [],
+      "assertions": [
+        {"text": "Agent scoped targetClasses to the pricing module/package (not the whole repo)"},
+        {"text": "Agent looped: run PITest -> analyze survivors -> write tests -> re-run, until test_strength >= 0.80"},
+        {"text": "If equivalent mutants prevent reaching 0.80, agent documented them in test comments and stopped"},
+        {"text": "Agent reported final test_strength and mutation_coverage with a delta from baseline"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "pitest keeps saying 'tests did not pass without mutation' — help me fix it",
+      "expected_output": "Agent diagnoses the issue: checks for failing unit tests, checks for integration tests not excluded from PITest config, fixes the config or failing tests, re-runs successfully",
+      "files": [],
+      "assertions": [
+        {"text": "Agent first ran the unit test suite standalone (mvn test or gradle test) to verify whether tests pass without PITest"},
+        {"text": "If standalone tests passed, agent investigated config mismatch between Surefire and PITest (excluded tests, Spring context, env vars)"},
+        {"text": "Agent identified and fixed the root cause (not just suppressed the error)"},
+        {"text": "Agent re-ran PITest after the fix and confirmed it produced a valid mutation report"}
+      ]
+    }
+  ]
+}
