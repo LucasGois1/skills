@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "name": "lucasgois-skills",
+    "description": "Lucas's collection of Agent Skills"
+  },
+  "plugins": [
+    {
+      "name": "mutation-hardening",
+      "source": "skills/mutation-hardening",
+      "skills": ["./skills/mutation-hardening"]
+    }
+  ]
+}
