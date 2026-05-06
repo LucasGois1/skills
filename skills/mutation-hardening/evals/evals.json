@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "acabei de implementar o OrderService com testes, roda mutation testing pra ver se os testes tão realmente pegando os bugs",
+      "prompt": "I just implemented OrderService with tests — run mutation testing to verify the tests actually catch bugs",
       "expected_output": "Agent configures PITest if absent, runs it, parses survived mutants in OrderService, writes targeted tests for boundaries/arithmetic/returns that survived, re-runs, reports final mutation score",
       "files": [],
       "assertions": [
@@ -11,7 +11,7 @@
         {"text": "Agent added pitest plugin to pom.xml or build.gradle (without overwriting existing build config)"},
         {"text": "PITest configuration excludes integration tests via excludedTestClasses (*IT, *IntegrationTest pattern)"},
         {"text": "PITest configuration sets avoidCallsTo for slf4j/log4j/java.util.logging"},
-        {"text": "Agent ran mvn pitest:mutationCoverage (or ./gradlew pitest) and waited for completion"},
+        {"text": "Agent ran Maven or Gradle mutation coverage (mvn or ./mvnw test-compile pitest:mutationCoverage, or ./gradlew pitest) and waited for completion"},
         {"text": "Agent parsed mutations.xml (used scripts/parse_mutations.py or equivalent XML parsing)"},
         {"text": "Agent reported test_strength and mutation_coverage as separate metrics"},
         {"text": "Agent wrote at least one new test targeting a SURVIVED mutant with a concrete assertion (not assertNotNull alone)"},
@@ -34,7 +34,7 @@
     },
     {
       "id": 3,
-      "prompt": "preciso que o mutation score do módulo de pricing chegue a pelo menos 80% antes de eu fazer o deploy",
+      "prompt": "I need the pricing module mutation score to reach at least 80% before I deploy",
       "expected_output": "Agent detects build tool, configures PITest targeting the pricing module, runs it, iterates writing tests until test_strength >= 0.80, then reports final metrics",
       "files": [],
       "assertions": [
@@ -50,7 +50,7 @@
       "expected_output": "Agent diagnoses the issue: checks for failing unit tests, checks for integration tests not excluded from PITest config, fixes the config or failing tests, re-runs successfully",
       "files": [],
       "assertions": [
-        {"text": "Agent first ran the unit test suite standalone (mvn test or gradle test) to verify whether tests pass without PITest"},
+        {"text": "Agent first ran the unit test suite standalone (mvn test, ./mvnw test, or gradle test) to verify whether tests pass without PITest"},
         {"text": "If standalone tests passed, agent investigated config mismatch between Surefire and PITest (excluded tests, Spring context, env vars)"},
         {"text": "Agent identified and fixed the root cause (not just suppressed the error)"},
         {"text": "Agent re-ran PITest after the fix and confirmed it produced a valid mutation report"}

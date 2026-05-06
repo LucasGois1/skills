@@ -66,7 +66,7 @@ Use the config from `references/pitest-config.md` for your BUILD_TOOL and TEST_F
 - `avoidCallsTo`: `java.util.logging`, `org.slf4j`, `org.apache.log4j` (suppress log mutation noise)
 - `outputFormats`: `XML,HTML` (need XML for parsing, HTML for human review)
 - `threads`: 4 (reasonable default; bump to match CPU count on CI)
-- `withHistory`: true (incremental analysis — skip unchanged classes)
+- **Maven + PIT 1.23+**: add `pitest-history-plugin` to `pitest-maven` plugin dependencies; set `historyInputFile` and `historyOutputFile` to the same path under `${project.build.directory}` (for example `target/pitest-history.bin`). Gradle projects typically configure `withHistory` / history files via the Solidsoft plugin — see `references/pitest-config.md`.
 - For JUnit 5 + Maven: add `pitest-junit5-plugin` dependency inside the plugin config
 - For JUnit 5 + Gradle: set `testPlugin = 'junit5'`
 
@@ -74,10 +74,11 @@ Use the config from `references/pitest-config.md` for your BUILD_TOOL and TEST_F
 
 ## Phase 2 — Run Mutation Tests
 
-**Maven:**
+**Maven** (see `references/pitest-config.md` for a **1.23.1** baseline including `pitest-history-plugin`):
 ```bash
 mvn test-compile pitest:mutationCoverage -Dsurefire.failIfNoSpecifiedTests=false
 ```
+Use `./mvnw` instead of `mvn` when the project provides the Maven Wrapper.
 
 **Gradle:**
 ```bash

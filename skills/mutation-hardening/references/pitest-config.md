@@ -1,33 +1,59 @@
 # PITest Configuration Reference
 
-## Maven — JUnit 5
+## Maven — JUnit 5 (baseline for PIT **1.23.1**)
 
-Add inside `<build><plugins>` in `pom.xml`:
+Example **`pitest-maven`** setup: **1.23.1**, **pitest-junit5-plugin 1.2.3**, **pitest-history-plugin 0.0.1** (incremental history on Maven requires this plugin from PIT **1.23+**), optional `${pitest.*}` thresholds, and **`--add-opens`** for Java **17+**.
+
+Replace every `com.example.app` prefix below with **your application’s root package**. Adjust `excludedClasses` / `excludedTestClasses` to match your layout (Spring Boot, layered packages, generated code, etc.).
+
+**`<properties>`** (example: warn-only defaults; CI can enforce via `-Dpitest.mutationThreshold=…`):
+
+```xml
+<pitest.mutationThreshold>0</pitest.mutationThreshold>
+<pitest.coverageThreshold>0</pitest.coverageThreshold>
+```
+
+**`<build><plugins>`**:
 
 ```xml
 <plugin>
     <groupId>org.pitest</groupId>
     <artifactId>pitest-maven</artifactId>
-    <version>1.16.1</version>
+    <version>1.23.1</version>
     <dependencies>
-        <!-- Required for JUnit 5 support -->
         <dependency>
             <groupId>org.pitest</groupId>
             <artifactId>pitest-junit5-plugin</artifactId>
-            <version>1.2.1</version>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-history-plugin</artifactId>
+            <version>0.0.1</version>
         </dependency>
     </dependencies>
     <configuration>
         <targetClasses>
-            <param>com.example.*</param>  <!-- adjust to your base package -->
+            <param>com.example.app.*</param>
         </targetClasses>
         <targetTests>
-            <param>com.example.*</param>
+            <param>com.example.app.*</param>
         </targetTests>
+        <excludedClasses>
+            <param>com.example.app.*.dto.*</param>
+            <param>com.example.app.*.config.*</param>
+            <param>com.example.app.*.exception*.*</param>
+            <param>com.example.app.*.exceptions.*</param>
+            <param>com.example.app.Application</param>
+            <param>*MapperImpl</param>
+            <param>*$$*</param>
+        </excludedClasses>
         <excludedTestClasses>
             <param>*IT</param>
             <param>*IntegrationTest</param>
+            <param>*TestIT</param>
             <param>*E2ETest</param>
+            <param>*MockMvcTest</param>
         </excludedTestClasses>
         <avoidCallsTo>
             <avoidCallsTo>java.util.logging</avoidCallsTo>
@@ -40,19 +66,40 @@ Add inside `<build><plugins>` in `pom.xml`:
             <outputFormat>HTML</outputFormat>
         </outputFormats>
         <threads>4</threads>
-        <withHistory>true</withHistory>
+        <mutators>
+            <mutator>DEFAULTS</mutator>
+        </mutators>
+        <timestampedReports>false</timestampedReports>
         <historyInputFile>${project.build.directory}/pitest-history.bin</historyInputFile>
         <historyOutputFile>${project.build.directory}/pitest-history.bin</historyOutputFile>
-        <mutators>DEFAULTS</mutators>
-        <timestampedReports>false</timestampedReports>
+        <mutationThreshold>${pitest.mutationThreshold}</mutationThreshold>
+        <coverageThreshold>${pitest.coverageThreshold}</coverageThreshold>
+        <jvmArgs>
+            <jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
+            <jvmArg>--add-opens=java.base/java.util=ALL-UNNAMED</jvmArg>
+        </jvmArgs>
     </configuration>
 </plugin>
 ```
 
 Run:
+
 ```bash
-mvn test-compile pitest:mutationCoverage
+mvn test-compile pitest:mutationCoverage -Dsurefire.failIfNoSpecifiedTests=false
 ```
+
+If the repository includes a Maven Wrapper, use `./mvnw` instead of `mvn`.
+
+Scoped run (override targets without editing `pom.xml`):
+
+```bash
+mvn test-compile pitest:mutationCoverage \
+  -Dpitest.targetClasses=com.example.app.order.OrderService \
+  -Dpitest.targetTests=com.example.app.order.OrderServiceTest \
+  -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+From **PIT 1.23+**, incremental analysis on **Maven** requires **`pitest-history-plugin`** on the `pitest-maven` plugin classpath, plus matching `historyInputFile` / `historyOutputFile`. See [incremental analysis](https://pitest.org/quickstart/incremental_analysis/).
 
 ---
 
@@ -210,10 +257,9 @@ With `timestampedReports=false`, the report always overwrites the same directory
 
 ## Java 17+ Module System Issues
 
-If you get `InaccessibleObjectException` or module-related failures, add JVM args:
+If you see `InaccessibleObjectException` or similar module errors under PITest, add `jvmArgs` under `pitest-maven` `<configuration>` (included in the Maven JUnit 5 baseline above):
 
 ```xml
-<!-- Maven: in pitest plugin config -->
 <jvmArgs>
     <jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
     <jvmArg>--add-opens=java.base/java.util=ALL-UNNAMED</jvmArg>
