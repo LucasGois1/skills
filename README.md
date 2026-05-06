@@ -1,6 +1,6 @@
 # Lucas's Agent Skills
 
-[![skills.sh](https://skills.sh/b/LucasGois1/skills)](https://skills.sh/LucasGois1/skills)
+[![skills.sh](https://skills.sh/b/lucasgois1/skills)](https://skills.sh/lucasgois1/skills)
 
 Reusable [Agent Skills](https://agentskills.io) for AI coding agents. Compatible with Claude Code, Cursor, Codex, Gemini, Copilot, and any tool that follows the Agent Skills standard.
 
