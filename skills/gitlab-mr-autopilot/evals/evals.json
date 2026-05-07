@@ -1,0 +1,23 @@
+{
+  "skill_name": "gitlab-mr-autopilot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "DRY-RUN ONLY (no real git push/MR actions). I finished the Spotless formatting fixes on branch fix/spotless-pipeline. Ship it: describe the exact sequence of commands and GitLab MCP calls you would run to commit (if needed), push, open a GitLab MR targeting develop, then babysit CI until green. If lint fails, describe the minimal fix loop. Finally, describe how you'd reply to bot comments and resolve threads (using glab where MCP lacks coverage). Output: a concise execution plan + command snippets.",
+      "expected_output": "A step-by-step execution plan that includes: git status/diff + commit/push steps; MR creation (MCP create_merge_request) or glab fallback; pipeline discovery (MCP get_merge_request_pipelines + get_pipeline_jobs) and job log retrieval (glab ci trace); iterative fix/commit/push loop; discussion triage (glab mr note list) with replies and resolves (glab mr note resolve or glab api POST).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "DRY-RUN ONLY (no real git push/MR actions). MR !42 is open on group/acme/backend. CI job 'test' failed. Describe how you would: identify project id/path and MR IID, fetch pipelines and jobs, pull the failing job log, apply the smallest possible fix, commit/push, and babysit CI until success. Include the exact MCP tool calls you would make and the glab commands you'd run. Don't merge.",
+      "expected_output": "A step-by-step plan that: resolves project path and MR IID; uses MCP get_merge_request_pipelines + get_pipeline_jobs; uses glab ci trace for logs; proposes minimal test fix workflow; repeats commit/push and pipeline polling until success; ends with an MR comment plan including evidence (commit SHA).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "DRY-RUN ONLY. There are three unresolved review threads on my MR (one human nit, one SAST warning, one dependency bot). Describe the triage loop: list unresolved discussions, decide fix vs explain, reply in-thread, and resolve only fully addressed threads. Include concrete glab commands (mr note list/create/resolve and glab api reply) and the criteria you use to decide when to resolve. Output: a checklist + sample reply templates.",
+      "expected_output": "A review triage plan with: glab mr note list --state unresolved -F json; per-thread decision tree (agree/fix, disagree/explain, ask follow-up); reply mechanism (glab api POST to discussions/<discussion_id>/notes when needed); resolve via glab mr note resolve; and sample reply text referencing commits/logs.",
+      "files": []
+    }
+  ]
+}
