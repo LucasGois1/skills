@@ -62,13 +62,18 @@ Check if PITest plugin is already configured.
 Use the config from `references/pitest-config.md` for your BUILD_TOOL and TEST_FRAMEWORK.
 
 **Critical defaults to enforce:**
-- Exclude integration tests: `*IT`, `*IntegrationTest`, `*E2ETest` (and any class using `@SpringBootTest` / Testcontainers)
+- Exclude integration tests: `*IT`, `*IntegrationTest`, `*E2ETest` (and any class using `@SpringBootTest`, **`@QuarkusTest` / full Quarkus bootstrap**, or Testcontainers)
 - `avoidCallsTo`: `java.util.logging`, `org.slf4j`, `org.apache.log4j` (suppress log mutation noise)
 - `outputFormats`: `XML,HTML` (need XML for parsing, HTML for human review)
 - `threads`: 4 (reasonable default; bump to match CPU count on CI)
 - **Maven + PIT 1.23+**: add `pitest-history-plugin` to `pitest-maven` plugin dependencies; set `historyInputFile` and `historyOutputFile` to the same path under `${project.build.directory}` (for example `target/pitest-history.bin`). Gradle projects typically configure `withHistory` / history files via the Solidsoft plugin — see `references/pitest-config.md`.
 - For JUnit 5 + Maven: add `pitest-junit5-plugin` dependency inside the plugin config
 - For JUnit 5 + Gradle: set `testPlugin = 'junit5'`
+
+**Mutator group (`DEFAULTS` vs `STRONGER`):**
+- Start with **`DEFAULTS`** (PITest default stable set).
+- Use **`STRONGER`** when you want stricter checks; it adds mutators such as **`RemoveConditionals` (`EQUAL_IF`)** and others, which often surface **new SURVIVED** mutants until tests assert both branches and concrete values (not only exception type).
+- Avoid **`ALL`** (officially discouraged in the PITest FAQ).
 
 ---
 
@@ -95,8 +100,26 @@ The run will:
 - **Verify by running target tests standalone first** (`mvn test -Dtest=YourTestClass`). If green standalone but red under PITest, it's a config mismatch.
 - Common causes:
   - Config mismatch between Surefire and PITest (excluded tests in Surefire not excluded in PITest config)
-  - Test depends on Spring context that PITest's forked process doesn't bootstrap
+  - Test depends on **Spring** or **Quarkus** application context that PITest's forked minion does not bootstrap the same way as Surefire (see **Quarkus / CDI** below)
   - Test relies on system properties or env vars not propagated to forked PITest JVM
+  - **JaCoCo `prepare-agent`** injecting `argLine`: PITest may merge that into child JVM args; if you see odd failures, try **`mvn ... -Djacoco.skip=true`** for the mutation goal only (keep JaCoCo for normal `mvn test`).
+
+### Quarkus / CDI full-stack tests
+
+Classes annotated with **`@QuarkusTest`** (and similar tests that start the full Quarkus runtime) often **pass under Surefire** but **fail under PITest** during coverage pre-scan (*"did not pass without mutation"* for the whole class).
+
+**Recommended handling:**
+- **Do not** put those classes in PITest `targetTests`; keep verifying them with **`mvn test`** / Failsafe.
+- Restrict PITest to **fast unit tests** (pure JUnit + mocks) and, if needed, a narrow `targetClasses` package that those tests actually exercise.
+- Document in the project why integration tests are excluded from mutation scope.
+
+### Incremental history (Maven, PIT 1.23+)
+
+With **`pitest-history-plugin`** and matching **`historyInputFile` / `historyOutputFile`**, PITest **reuses** results for unchanged code. This is **expected and desirable** (faster CI and local runs).
+
+You may see log lines such as **"Incremental analysis reduced number of mutations"** or **"Ran 0 tests"** for mutants skipped via history — **not** a misconfiguration.
+
+**Do not** delete the history file as part of the normal loop. Only remove **`pitest-history.bin`** (or equivalent) when you intentionally need a **full recompute** (e.g. after changing the **mutator group**, major refactor, or debugging suspected stale history).
 
 **Typical runtime:** 1–5 min for small projects, 10–30 min for large ones.
 Wait for completion before proceeding.
@@ -163,6 +186,9 @@ For each survived mutant, understand what it means and what test would kill it.
 | `NullReturns` | returned `null` instead of object | Assert return value is not null |
 | `FalseReturns` / `TrueReturns` | flipped boolean return | Assert both true and false return paths |
 | `PrimitiveReturns` | returned `0` instead of real value | Assert the actual numeric return value |
+| `RemoveConditionalMutator_EQUAL_IF` / `EQUAL_ELSE` | conditional removed (often `== null` / `!= null`) | Cover **both** branches with assertions on **observable outcome** (return value, field, message text, etc.) — not only `assertThrows(SameException.class)` |
+
+**STRONGER** enables **`RemoveConditionals` (`EQUAL_IF`)** in addition to the `EQUAL_ELSE` case included in **DEFAULTS**. Expect more survivors on null-guards until tests distinguish branches.
 
 ### Equivalent mutants (do NOT write a test for these)
 

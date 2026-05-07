@@ -101,6 +101,14 @@ mvn test-compile pitest:mutationCoverage \
 
 From **PIT 1.23+**, incremental analysis on **Maven** requires **`pitest-history-plugin`** on the `pitest-maven` plugin classpath, plus matching `historyInputFile` / `historyOutputFile`. See [incremental analysis](https://pitest.org/quickstart/incremental_analysis/).
 
+**Incremental runs are expected:** later executions may log that many mutants were skipped from history and show **few or zero tests run** for those mutants. Keep the history file under `target/` (or your configured path); only delete it when you need a **full** re-analysis (mutator change, debugging stale history).
+
+**Quarkus / `@QuarkusTest`:** full-application tests often pass under Surefire but fail under PITest’s fork. Exclude them from `targetTests` / use `excludedTestClasses` and run mutation only on **unit** tests; keep integration coverage in `mvn test`.
+
+**JaCoCo:** if `prepare-agent` causes odd PITest behavior, run the mutation goal with **`-Djacoco.skip=true`** (optional; see skill `SKILL.md`).
+
+**Stronger mutators:** replace `<mutator>DEFAULTS</mutator>` with `<mutator>STRONGER</mutator>` when you want the extended set (more `RemoveConditionals`, etc.). See [mutator groups](https://pitest.org/quickstart/mutators/).
+
 ---
 
 ## Maven — JUnit 4
