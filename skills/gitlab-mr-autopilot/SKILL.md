@@ -15,6 +15,15 @@ description: >
 
 Turn finished implementation work into a **merge-ready** GitLab Merge Request: local git hygiene, **commit + push**, **MR creation or linkage**, **CI babysitting** until the latest pipeline succeeds, and a **review-comments loop** until every thread is answered and resolvable threads are **resolved**.
 
+## Compliance (required)
+
+**This skill is a contract, not a menu.** Follow it **completely** for the mode you are in.
+
+1. **Read the whole file** before acting. Do not implement only §3 (MR) and skip §4 (CI) or §5 (comments) when the user’s intent matches **full ship**, **open/create MR**, or **push for review**.
+2. **Obey Principles** below as hard rules, especially **Autonomy** and **Evidence before claims**.
+3. **Do not end the turn** after `create_merge_request` with “pipeline is running” as the final outcome when the user asked to ship, finish, open/create an MR, or push for review. You must **enter §4**, poll with backoff until the pipeline reaches a **terminal state** (`success`, or `failed`/`canceled` → then fix per §4.2–4.3 or **Escalate** per §4.5), then report **verified** status.
+4. If the user **explicitly** narrows scope (“só descreva o MR”, “DRY-RUN”, “não espere CI”, “apenas comentários do MR”), obey that narrower scope — but the **default** for “crie o MR” / “open MR” is still **MR + CI observation to completion** unless they opted out.
+
 **Bundled resources:**
 - `evals/evals.json` — example prompts to validate the skill behavior (optional).
 
@@ -28,23 +37,32 @@ Activate for any of these intents (and similar phrasing):
 
 If the user only asked for a **description** or **draft text** without git actions, do that part only—do not commit unless they asked to ship.
 
+**“Create/open MR” is not a shortcut:** phrases like “crie o MR”, “open a merge request”, “abra o MR” map to **Full ship mode** (commit/push as needed → MR → **§4 CI loop to terminal state**) unless the user clearly opts out of waiting for CI (see **Compliance** above).
+
 ## Mode detection (important for DRY-RUN and focused requests)
 
-Pick the narrowest mode that satisfies the user’s request:
+Pick the **narrowest mode that still satisfies** the user’s request — but **do not** narrow on your own initiative to skip CI when they asked for delivery:
 
-1. **Full ship mode (default):** commit → push → MR → CI loop → comments loop.
-2. **CI-only mode:** focus on pipelines/jobs/logs and the minimal fix loop. Mention comment handling only if relevant.
-3. **Comments-only mode:** focus on discussions/threads/replies/resolution. Do **not** require pipeline tooling unless the thread explicitly references CI.
+1. **Full ship mode (default)** for ship / finish / **create or open MR** / push for review: **commit → push → MR → CI loop (mandatory) → comments loop** (if there are threads to triage).
+2. **CI-only mode:** user pointed at a failing pipeline or said fix CI / green the MR — pipelines/jobs/logs and fix loop only.
+3. **Comments-only mode:** user only asked to address MR feedback — discussions/replies/resolve; no CI unless a comment requires it.
 
 In **DRY-RUN** requests, output a concrete **execution plan** (commands + MCP calls) and avoid claiming that CI is green or threads are resolved.
 
-## Principles
+## Principles (rules — not suggestions)
 
-1. **Autonomy (default):** After you start the delivery flow, keep going through commit → push → MR → CI → comments until stop conditions are met. Do not ask for permission before each push unless the user said to stop or the change is unusually risky (see **Escalate**).
-2. **Evidence before claims:** Never say CI is green or comments are resolved without having checked the latest pipeline and discussion state.
+1. **Autonomy (default):** After you start the delivery flow, **continue** through commit → push → MR → **CI (until resolved)** → comments until **§6** stop conditions or **§4.5** escalation. Do not ask for permission before each push unless the user said to stop or the change is unusually risky (see **Escalate**). **Stopping early is a failure mode** (see **Anti-patterns**).
+2. **Evidence before claims:** Never state that CI is green, red, or “done” without **fresh** checks: MCP `get_merge_request_pipelines` / `get_pipeline_jobs` and/or `glab ci status` or `glab api …/pipelines/:id` for the **relevant** pipeline(s). The same commit may trigger both a **branch push** pipeline and an **MR** pipeline — verify the one the team cares about (often both should be `success` before you claim green).
 3. **Smallest fix:** Prefer minimal, scoped commits that directly address the failing job or the comment.
 4. **No secrets:** Do not commit tokens, `.env`, private keys, or credential-bearing files. If a failure is due to missing secrets in CI, document that in an MR comment and stop—do not fake credentials.
 5. **No destructive git without explicit user consent:** Avoid `git push --force` to shared branches; prefer normal commits. If a rebase/force-push is truly required, ask once with a clear reason.
+
+### Anti-patterns (violations — do not do this)
+
+- Closing the response right after **creating the MR** without running **§4** when the user asked for MR/ship/review.
+- Leaving the user with **“pipeline is running”** as the **final** line with no poll, no backoff, no terminal status — unless they explicitly asked not to wait.
+- Saying **“CI passed”** or **“all green”** from memory or assumption instead of the latest tool output.
+- Skipping **§5** when there are **unresolved** discussions and the user asked for merge-ready / addressed feedback.
 
 ## Compatibility
 
@@ -99,9 +117,13 @@ Collect and keep handy:
 
 Record: **MR IID**, **MR web URL**, **project id**.
 
+**Immediately after MR exists:** go to **§4**. Creating the MR is a **step**, not the **done** state for delivery intents.
+
 ## 4) CI babysitting loop
 
 **Goal:** Latest pipeline for the MR’s latest commit is **success** (respect allowed failures per project policy—if unsure, treat unexpected red as failure).
+
+**You must poll:** use sleep/backoff between checks (e.g. 15–120s depending on stage). Repeat **§4.1** until `status` is **`success`**, or a **failed** job triggers §4.2–4.3, or §4.5 applies. **Do not** treat `running` as an acceptable final answer in **Full ship mode**.
 
 ### CI-only / DRY-RUN output contract
 
@@ -144,8 +166,8 @@ Repeat until green or blocked:
 
 ### 4.4 Wait and poll
 
-- Wait for the new pipeline (sleep/backoff; avoid hammering APIs).
-- **`glab ci status`** can summarize current pipeline on the branch.
+- After push or MR creation, **wait** (sleep/backoff; avoid hammering APIs) and **re-query** pipelines until terminal state.
+- **`glab ci status -b <branch>`** summarizes the branch pipeline; **`glab api projects/:id/pipelines/:pipeline_id`** (or MCP `get_merge_request_pipelines`) confirms **MR-detached** pipelines when GitLab creates a second pipeline for `merge_request_event`.
 - Optionally MCP `manage_pipeline` **retry** only for confirmed flakes—do not mask real failures.
 
 ### 4.5 Escalate (stop looping)
@@ -243,7 +265,7 @@ Post a short **summary comment** on the MR:
 
 - [ ] Pushed all commits?
 - [ ] MR exists and points at this branch?
-- [ ] Latest pipeline green (verified)?
-- [ ] All MR threads answered?
+- [ ] For ship / open MR / push for review: **CI polled to terminal state** (not left at `running`) and **`success` verified** via fresh tool output (branch pipeline **and** MR/`merge_request_event` pipeline when both exist)?
+- [ ] All MR threads answered (when in scope)?
 - [ ] Resolved threads marked resolved where appropriate?
 - [ ] No secrets in diff?
